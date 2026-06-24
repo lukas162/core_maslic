@@ -26,7 +26,22 @@ struct RemoveThreeBackToBackTripleOps final : OpRewritePattern<TripleOp> {
   LogicalResult matchAndRewrite(TripleOp op,
                                 PatternRewriter& rewriter) const override {
     // TODO: Task 3
-    return failure();
+    auto nextOp = dyn_cast<TripleOp>(*op.getOutputQubit(0).user_begin());
+    if (!nextOp) {
+      return failure();
+    }
+
+    auto nextnextOp = dyn_cast<TripleOp>(*nextOp.getOutputQubit(0).user_begin());
+    if (!nextnextOp) {
+      return failure();
+    }
+
+    // Erase all three operations
+    rewriter.replaceOp(op, op.getInputQubits());
+    rewriter.replaceOp(nextOp, nextOp.getInputQubits());
+    rewriter.replaceOp(nextnextOp, nextnextOp.getInputQubits());
+    return success();
+    }
   }
 };
 

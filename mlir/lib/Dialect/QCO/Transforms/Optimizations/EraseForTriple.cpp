@@ -36,6 +36,46 @@ protected:
     auto* ctx = &getContext();
 
     // TODO: Task 4 (Bonus)
+    
+    // PassManager pm(ctx);
+    // pm.addNestedPass<func::FuncOp>(createQuantumLoopUnroll());
+    // pm.addPass(getCanonicalizationPatterns(results, ctx));
+
+    // Collect and unroll quantum loops with a constant trip count of 3.
+    auto isQuantumLoop = [](scf::ForOp loop) {
+      return llvm::any_of(loop.getInitArgs(), [](Value arg) {
+        if (isa<QubitType>(arg.getType())) {
+          return true;
+        }
+        if (const auto tensorTy = dyn_cast<RankedTensorType>(arg.getType())) {
+          return isa<QubitType>(tensorTy.getElementType());
+        }
+        return false;
+      });
+    };
+
+    auto collectQuantumLoops = [&](FunctionOpInterface func) {
+      SmallVector<scf::ForOp> loops;
+      func.walk<WalkOrder::PostOrder>([&](scf::ForOp loop) {
+        if (isQuantumLoop(loop))
+          loops.emplace_back(loop);
+      });
+      return loops;
+    };
+
+    auto module = getOperation();
+    for (auto funcOp : module.getOps<func::FuncOp>()) {
+      for (auto loop : collectQuantumLoops(funcOp)) {
+        auto tripCounts = mlir::getConstLoopTripCounts(loop);
+        if (!tripCounts.empty() && tripCounts[0] == 3) {
+          if (failed(loopUnrollFull(loop))) {
+            loop.emitError() << "failed to fully unroll";
+            signalPassFailure();
+            return;
+          }
+        }
+      }
+    }
   }
 };
 

@@ -626,7 +626,15 @@ struct ConvertQCOTripleOp final : OpConversionPattern<qco::TripleOp> {
   matchAndRewrite(qco::TripleOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter& rewriter) const override {
     // TODO: Task 2.2
-    llvm::reportFatalInternalError("Not implemented yet");
+    auto qcQubit = adaptor.getQubitIn();
+
+    // Create qc.triple operation
+    qc::TripleOp::create(rewriter, op.getLoc(), qcQubit);
+
+    // Replace the output qubits with the same qc references
+    rewriter.replaceOp(op, qcQubit);
+
+    return success();
   }
 };
 
